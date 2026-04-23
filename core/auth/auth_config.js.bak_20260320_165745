@@ -1,0 +1,12 @@
+export const AUTH_ENABLED = true;
+
+// PREENCHER COM OS DADOS DO SEU SUPABASE:
+export const SUPABASE_URL = "";
+export const SUPABASE_ANON_KEY = "";
+
+// Se true, quando a configuração estiver vazia o app segue funcionando sem bloquear.
+// Assim evitamos derrubar o app antes da ativação real.
+export const ALLOW_APP_WHEN_CONFIG_MISSING = true;
+
+export const ACCESS_TABLE = "nb_access_profiles";
+export const APP_TITLE = "APP Caracterização de Solo NB";

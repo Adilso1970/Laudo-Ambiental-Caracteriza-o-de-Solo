@@ -1,0 +1,47 @@
+﻿{
+    "pack":  "recommendation-policies",
+    "version":  "1.0.0",
+    "domain":  "app-caracterizacao-solo-nb",
+    "createdAt":  "2026-03-19T16:05:48-03:00",
+    "policies":  [
+                     {
+                         "id":  "POL-CRITICO-PENDENCIA",
+                         "match":  {
+                                       "severity":  "critico",
+                                       "outputType":  "pendencia"
+                                   },
+                         "owner":  "responsavel_tecnico",
+                         "deadlineClass":  "imediato",
+                         "reviewLevel":  "obrigatoria",
+                         "actionRequired":  "sanar antes da emissão"
+                     },
+                     {
+                         "id":  "POL-ATENCAO-INCONSISTENCIA",
+                         "match":  {
+                                       "severity":  "atencao",
+                                       "outputType":  "inconsistencia"
+                                   },
+                         "owner":  "analista_tecnico",
+                         "deadlineClass":  "prioritario",
+                         "reviewLevel":  "obrigatoria",
+                         "actionRequired":  "revisar coerência técnica"
+                     },
+                     {
+                         "id":  "POL-ALERTA-GERAL",
+                         "match":  {
+                                       "severity":  "alerta"
+                                   },
+                         "owner":  "analista_tecnico",
+                         "deadlineClass":  "curto_prazo",
+                         "reviewLevel":  "recomendada",
+                         "actionRequired":  "registrar e ajustar"
+                     },
+                     {
+                         "id":  "POL-DEFAULT",
+                         "owner":  "responsavel_tecnico",
+                         "deadlineClass":  "normal",
+                         "reviewLevel":  "recomendada",
+                         "actionRequired":  "avaliar e registrar"
+                     }
+                 ]
+}

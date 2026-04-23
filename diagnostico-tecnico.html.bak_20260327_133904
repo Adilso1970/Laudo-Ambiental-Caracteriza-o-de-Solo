@@ -1,0 +1,322 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diagnóstico Técnico | APP CARACTERIZAÇÃO DE SOLO NB</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121933;
+      --panel-2: #182142;
+      --border: rgba(255,255,255,0.10);
+      --text: #edf2ff;
+      --muted: #b7c2e0;
+      --accent: #4ea1ff;
+      --ok: #18a957;
+      --warn: #d6a400;
+      --crit: #d64545;
+      --chip: #22305f;
+      --shadow: 0 10px 35px rgba(0,0,0,0.30);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #09101d 0%, #0d1530 100%);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .wrap {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, rgba(78,161,255,0.18), rgba(255,255,255,0.04));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      margin: 0 0 8px 0;
+      font-size: 28px;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 20px;
+    }
+
+    .card {
+      background: rgba(18,25,51,0.95);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+      font-weight: 700;
+    }
+
+    .card-body {
+      padding: 18px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 520px;
+      resize: vertical;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: #09101d;
+      color: var(--text);
+      padding: 16px;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.45;
+      outline: none;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 16px;
+      cursor: pointer;
+      font-weight: 700;
+      color: white;
+      background: #235dbe;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      opacity: 0.95;
+    }
+
+    button.secondary {
+      background: #2a345a;
+    }
+
+    button.success {
+      background: #157347;
+    }
+
+    button.warning {
+      background: #8a6b00;
+    }
+
+    .statusbar {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .kpi {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .kpi .label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .kpi .value {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .section {
+      margin-bottom: 18px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .section h3 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .chip {
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: var(--chip);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .chip.ok { background: rgba(24,169,87,0.18); }
+    .chip.warn { background: rgba(214,164,0,0.18); }
+    .chip.crit { background: rgba(214,69,69,0.18); }
+
+    pre {
+      background: #09101d;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      overflow: auto;
+      color: #dce6ff;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .item {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(255,255,255,0.03);
+    }
+
+    .item strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    @media (max-width: 1080px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      textarea {
+        min-height: 380px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Diagnóstico Técnico Aplicado</h1>
+      <p>
+        Ambiente separado para validar o núcleo normativo, análise automática, workflow e auditoria
+        sem interferir no fluxo principal já homologado do APP CARACTERIZAÇÃO DE SOLO NB.
+      </p>
+    </section>
+
+    <div class="grid">
+      <section class="card">
+        <div class="card-header">Contexto do Projeto (JSON)</div>
+        <div class="card-body">
+          <textarea id="jsonInput" spellcheck="false"></textarea>
+
+          <div class="actions">
+            <button id="btnLoadExample" class="secondary">Carregar exemplo</button>
+            <button id="btnRun">Executar análise técnica</button>
+            <button id="btnDownloadJson" class="success">Baixar resultado JSON</button>
+            <button id="btnDownloadTxt" class="warning">Baixar relatório TXT</button>
+          </div>
+
+          <div id="statusbar" class="statusbar">Aguardando execução.</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">Resultado consolidado</div>
+        <div class="card-body">
+          <div class="kpis">
+            <div class="kpi">
+              <div class="label">Ocorrências</div>
+              <div id="kpiTotal" class="value">0</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Status sugerido</div>
+              <div id="kpiStatus" class="value">-</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Emissão</div>
+              <div id="kpiEmit" class="value">-</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Bloqueantes</div>
+              <div id="kpiBlock" class="value">0</div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>Severidade</h3>
+            <div id="severityChips" class="chips"></div>
+          </div>
+
+          <div class="section">
+            <h3>Texto técnico sugerido</h3>
+            <pre id="textSuggestions">Sem dados.</pre>
+          </div>
+
+          <div class="section">
+            <h3>Achados e recomendações</h3>
+            <div id="findingsList" class="list"></div>
+          </div>
+
+          <div class="section">
+            <h3>Workflow + auditoria</h3>
+            <pre id="workflowOutput">Sem dados.</pre>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script type="module" src="./dev/diagnostico-tecnico.js"></script>
+</body>
+</html>
+

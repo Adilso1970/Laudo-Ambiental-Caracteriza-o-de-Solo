@@ -1,0 +1,75 @@
+﻿{
+    "pack":  "workflow-statuses",
+    "version":  "1.0.0",
+    "domain":  "app-caracterizacao-solo-nb",
+    "createdAt":  "2026-03-19T16:13:53-03:00",
+    "statuses":  [
+                     {
+                         "id":  "rascunho",
+                         "label":  "Rascunho",
+                         "stage":  1
+                     },
+                     {
+                         "id":  "em_preenchimento",
+                         "label":  "Em preenchimento",
+                         "stage":  2
+                     },
+                     {
+                         "id":  "em_revisao_tecnica",
+                         "label":  "Em revisão técnica",
+                         "stage":  3
+                     },
+                     {
+                         "id":  "com_pendencias",
+                         "label":  "Com pendências",
+                         "stage":  4
+                     },
+                     {
+                         "id":  "aprovado_para_emissao",
+                         "label":  "Aprovado para emissão",
+                         "stage":  5
+                     },
+                     {
+                         "id":  "emitido",
+                         "label":  "Emitido",
+                         "stage":  6
+                     },
+                     {
+                         "id":  "arquivado",
+                         "label":  "Arquivado",
+                         "stage":  7
+                     }
+                 ],
+    "transitions":  {
+                        "rascunho":  [
+                                         "em_preenchimento",
+                                         "arquivado"
+                                     ],
+                        "em_preenchimento":  [
+                                                 "em_revisao_tecnica",
+                                                 "com_pendencias",
+                                                 "arquivado"
+                                             ],
+                        "em_revisao_tecnica":  [
+                                                   "com_pendencias",
+                                                   "aprovado_para_emissao",
+                                                   "arquivado"
+                                               ],
+                        "com_pendencias":  [
+                                               "em_preenchimento",
+                                               "em_revisao_tecnica",
+                                               "arquivado"
+                                           ],
+                        "aprovado_para_emissao":  [
+                                                      "emitido",
+                                                      "com_pendencias",
+                                                      "arquivado"
+                                                  ],
+                        "emitido":  [
+                                        "arquivado"
+                                    ],
+                        "arquivado":  [
+
+                                      ]
+                    }
+}

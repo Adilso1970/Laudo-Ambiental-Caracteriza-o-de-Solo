@@ -1,0 +1,85 @@
+﻿{
+    "pack":  "normative",
+    "version":  "1.0.0",
+    "domain":  "app-caracterizacao-solo-nb",
+    "createdAt":  "2026-03-19T15:51:55-03:00",
+    "mode":  "local-first",
+    "rules":  [
+                  {
+                      "id":  "SOLO-EVID-001",
+                      "active":  true,
+                      "theme":  "solo_processos",
+                      "severity":  "critico",
+                      "outputType":  "pendencia",
+                      "version":  "1.0.0",
+                      "when":  {
+                                   "all":  [
+                                               "solo.indicioRelevante=true",
+                                               "evidencias.quantidade=0"
+                                           ]
+                               },
+                      "requires":  [
+                                       "evidencia_fotografica_ou_documental"
+                                   ],
+                      "message":  "Há indicação relevante em Solo/Processos sem evidência vinculada.",
+                      "recommendation":  "Vincular evidências antes da emissão do laudo."
+                  },
+                  {
+                      "id":  "CONFORM-COER-001",
+                      "active":  true,
+                      "theme":  "conformidade",
+                      "severity":  "atencao",
+                      "outputType":  "inconsistencia",
+                      "version":  "1.0.0",
+                      "when":  {
+                                   "all":  [
+                                               "conformidade.status=conforme",
+                                               "solo.indicioRelevante=true"
+                                           ]
+                               },
+                      "requires":  [
+                                       "revisao_tecnica_da_conclusao"
+                                   ],
+                      "message":  "A conformidade foi marcada como regular mesmo com indício relevante em Solo/Processos.",
+                      "recommendation":  "Revisar coerência entre checklist, evidências e conclusão."
+                  },
+                  {
+                      "id":  "AGUA-LAUDO-001",
+                      "active":  true,
+                      "theme":  "agua",
+                      "severity":  "alerta",
+                      "outputType":  "achado",
+                      "version":  "1.0.0",
+                      "when":  {
+                                   "all":  [
+                                               "agua.alteracaoIdentificada=true",
+                                               "laudo.temObservacaoAgua=false"
+                                           ]
+                               },
+                      "requires":  [
+                                       "observacao_tecnica_no_laudo"
+                                   ],
+                      "message":  "Há alteração identificada em Água sem observação correspondente no laudo.",
+                      "recommendation":  "Inserir observação técnica específica no texto final."
+                  },
+                  {
+                      "id":  "EVID-MIN-001",
+                      "active":  true,
+                      "theme":  "evidencias",
+                      "severity":  "alerta",
+                      "outputType":  "pendencia",
+                      "version":  "1.0.0",
+                      "when":  {
+                                   "all":  [
+                                               "projeto.id=true",
+                                               "evidencias.quantidade=0"
+                                           ]
+                               },
+                      "requires":  [
+                                       "evidencia_minima_para_emissao"
+                                   ],
+                      "message":  "Projeto sem evidências cadastradas.",
+                      "recommendation":  "Anexar evidências mínimas antes da emissão."
+                  }
+              ]
+}

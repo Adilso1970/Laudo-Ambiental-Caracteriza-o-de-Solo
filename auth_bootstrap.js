@@ -1,0 +1,945 @@
+﻿import {
+  AUTH_ENABLED,
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY,
+  ALLOW_APP_WHEN_CONFIG_MISSING,
+  ACCESS_TABLE,
+  APP_TITLE
+} from "./core/auth/auth_config.js";
+
+if (typeof window !== "undefined") {
+  bootstrapAuthLayer().catch((error) => {
+    console.error("Falha na camada de acesso:", error);
+  });
+}
+
+async function bootstrapAuthLayer() {
+  if (!AUTH_ENABLED) return;
+
+  injectStyles();
+
+  const configReady = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+  if (!configReady) {
+    if (!ALLOW_APP_WHEN_CONFIG_MISSING) {
+      renderConfigOverlay();
+    } else {
+      renderConfigNotice();
+    }
+    return;
+  }
+
+  const mod = await import("https://esm.sh/@supabase/supabase-js@2");
+  const createClient = mod.createClient;
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  });
+
+  window.__NB_SUPABASE__ = supabase;
+
+  ensureAuthMount();
+
+  const initial = await supabase.auth.getSession();
+  await syncAuthUi(supabase, initial.data.session);
+
+  supabase.auth.onAuthStateChange(async (_event, session) => {
+    await syncAuthUi(supabase, session);
+  });
+}
+
+function injectStyles() {
+  if (document.getElementById("nb-auth-style")) return;
+
+  const style = document.createElement("style");
+  style.id = "nb-auth-style";
+  style.textContent = `
+    #nbAuthOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 999999;
+      background: rgba(4, 10, 24, 0.78);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+    .nbAuthCard {
+      width: min(520px, 100%);
+      background: #ffffff;
+      border-radius: 20px;
+      box-shadow: 0 28px 70px rgba(0,0,0,.28);
+      overflow: hidden;
+      border: 1px solid rgba(0,0,0,.06);
+    }
+    .nbAuthHeader {
+      background: linear-gradient(135deg, #0b5bd3, #0a3f93);
+      color: #fff;
+      padding: 18px 20px;
+    }
+    .nbAuthHeader h2 {
+      margin: 0 0 6px 0;
+      font-size: 20px;
+    }
+    .nbAuthHeader p {
+      margin: 0;
+      opacity: .92;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .nbAuthBody {
+      padding: 18px 20px 20px;
+    }
+    .nbAuthTabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .nbAuthTabs button,
+    .nbAuthBtn,
+    .nbAdminBtn {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .nbAuthTabs button {
+      background: #eef4ff;
+      color: #0b5bd3;
+    }
+    .nbAuthTabs button.active {
+      background: #0b5bd3;
+      color: #fff;
+    }
+    .nbAuthGrid {
+      display: grid;
+      gap: 12px;
+    }
+    .nbAuthField label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #17304f;
+    }
+    .nbAuthField input,
+    .nbAdminSearch input,
+    .nbAdminTable select,
+    .nbAdminTable input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #d6dfef;
+      border-radius: 12px;
+      padding: 11px 12px;
+      font-size: 14px;
+      outline: none;
+      background: #fff;
+    }
+    .nbAuthField input:focus,
+    .nbAdminSearch input:focus,
+    .nbAdminTable select:focus,
+    .nbAdminTable input:focus {
+      border-color: #0b5bd3;
+      box-shadow: 0 0 0 3px rgba(11,91,211,.12);
+    }
+    .nbAuthActions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .nbAuthBtn.primary,
+    .nbAdminBtn.primary {
+      background: #0b5bd3;
+      color: #fff;
+    }
+    .nbAuthBtn.secondary,
+    .nbAdminBtn.secondary {
+      background: #eef4ff;
+      color: #0b5bd3;
+    }
+    .nbAuthHint {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #4b627d;
+      line-height: 1.45;
+    }
+    .nbAuthError {
+      margin-top: 10px;
+      background: #fff4f4;
+      color: #9d2323;
+      border: 1px solid #f2c6c6;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .nbAuthOk {
+      margin-top: 10px;
+      background: #f3fff5;
+      color: #116b2e;
+      border: 1px solid #c6ebce;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    #nbAuthSidebarCard {
+      margin-top: 12px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 14px;
+      padding: 12px;
+      color: #dce8ff;
+      display: grid;
+      gap: 8px;
+    }
+    #nbAuthSidebarCard .nbAuthUserEmail {
+      font-weight: 700;
+      font-size: 13px;
+      word-break: break-word;
+    }
+    #nbAuthSidebarCard .nbAuthMeta {
+      font-size: 12px;
+      opacity: .92;
+      line-height: 1.4;
+    }
+    #nbAuthSidebarCard .nbAuthSidebarButtons {
+      display: grid;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    #nbAuthSidebarCard .nbAdminBtn,
+    #nbAuthSidebarCard .nbAuthBtn {
+      width: 100%;
+    }
+    #nbAdminModal {
+      position: fixed;
+      inset: 0;
+      z-index: 999998;
+      background: rgba(4, 10, 24, 0.74);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+    .nbAdminShell {
+      width: min(1080px, 100%);
+      max-height: 88vh;
+      overflow: hidden;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 28px 70px rgba(0,0,0,.28);
+      display: flex;
+      flex-direction: column;
+    }
+    .nbAdminHeader {
+      padding: 18px 20px;
+      background: linear-gradient(135deg, #0b5bd3, #0a3f93);
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .nbAdminHeader h3 {
+      margin: 0;
+      font-size: 20px;
+    }
+    .nbAdminBody {
+      padding: 18px 20px 20px;
+      overflow: auto;
+    }
+    .nbAdminSearch {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .nbAdminTable {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .nbAdminTable th,
+    .nbAdminTable td {
+      border-bottom: 1px solid #e8edf5;
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .nbAdminTable th {
+      position: sticky;
+      top: 0;
+      background: #f8fbff;
+      z-index: 2;
+    }
+    .nbAdminActions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .nbSmallNote {
+      font-size: 12px;
+      color: #526781;
+      line-height: 1.4;
+    }
+    @media (max-width: 900px) {
+      .nbAdminSearch {
+        grid-template-columns: 1fr;
+      }
+      .nbAdminTable {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function ensureAuthMount() {
+  if (document.getElementById("nbAuthOverlay")) return;
+  const overlay = document.createElement("div");
+  overlay.id = "nbAuthOverlay";
+  overlay.hidden = true;
+  document.body.appendChild(overlay);
+}
+
+function renderConfigNotice() {
+  if (document.getElementById("nbAuthConfigNotice")) return;
+  const box = document.createElement("div");
+  box.id = "nbAuthConfigNotice";
+  box.style.position = "fixed";
+  box.style.right = "14px";
+  box.style.bottom = "14px";
+  box.style.zIndex = "999997";
+  box.style.background = "#fff8e8";
+  box.style.border = "1px solid #efd59c";
+  box.style.color = "#6a4b05";
+  box.style.padding = "12px 14px";
+  box.style.borderRadius = "14px";
+  box.style.boxShadow = "0 14px 30px rgba(0,0,0,.15)";
+  box.style.fontFamily = "Arial, Helvetica, sans-serif";
+  box.style.fontSize = "13px";
+  box.style.maxWidth = "360px";
+  box.innerHTML = "<b>Controle de acesso implantado.</b><br/>Falta apenas preencher a URL e a ANON KEY do Supabase em <code>src/core/auth/auth_config.js</code> para ativar login, bloqueio e painel admin.";
+  document.body.appendChild(box);
+}
+
+function renderConfigOverlay() {
+  ensureAuthMount();
+  const overlay = document.getElementById("nbAuthOverlay");
+  overlay.hidden = false;
+  overlay.innerHTML = `
+    <div class="nbAuthCard">
+      <div class="nbAuthHeader">
+        <h2>Configuração de acesso pendente</h2>
+        <p>${escapeHtml(APP_TITLE)} já possui a camada de login implantada, mas faltam as credenciais do Supabase para ativação real.</p>
+      </div>
+      <div class="nbAuthBody">
+        <div class="nbAuthError">
+          Preencha <b>SUPABASE_URL</b> e <b>SUPABASE_ANON_KEY</b> no arquivo <code>src/core/auth/auth_config.js</code>.
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function syncAuthUi(supabase, session) {
+  if (!session || !session.user) {
+    removeSidebarCard();
+    removeAdminModal();
+    renderAuthOverlay(supabase, "login");
+    return;
+  }
+
+  const profile = await fetchProfile(supabase, session.user.id);
+
+  if (!profile) {
+    renderBlockedOverlay(session.user.email || "", {
+      role: "cliente",
+      status: "bloqueado",
+      full_name: session.user.user_metadata?.full_name || ""
+    }, "Seu cadastro ainda não possui perfil de acesso ativo.");
+    injectSidebarCard(supabase, session.user, {
+      role: "cliente",
+      status: "bloqueado",
+      full_name: session.user.user_metadata?.full_name || ""
+    });
+    return;
+  }
+
+  injectSidebarCard(supabase, session.user, profile);
+
+  if (String(profile.status || "").toLowerCase() !== "ativo") {
+    removeAdminModal();
+    renderBlockedOverlay(session.user.email || "", profile, "Seu acesso está bloqueado no momento.");
+    return;
+  }
+
+  hideOverlay();
+  if (String(profile.role || "").toLowerCase() !== "admin") {
+    removeAdminModal();
+  }
+}
+
+async function fetchProfile(supabase, userId) {
+  const { data, error } = await supabase
+    .from(ACCESS_TABLE)
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Falha ao buscar perfil de acesso:", error);
+    return null;
+  }
+
+  return data || null;
+}
+
+function hideOverlay() {
+  const overlay = document.getElementById("nbAuthOverlay");
+  if (!overlay) return;
+  overlay.hidden = true;
+  overlay.innerHTML = "";
+}
+
+function renderBlockedOverlay(email, profile = {}, message = "") {
+  ensureAuthMount();
+  const overlay = document.getElementById("nbAuthOverlay");
+  overlay.hidden = false;
+  overlay.innerHTML = `
+    <div class="nbAuthCard">
+      <div class="nbAuthHeader">
+        <h2>Acesso restrito</h2>
+        <p>Seu login foi reconhecido, mas este usuário ainda não possui liberação ativa para uso do sistema.</p>
+      </div>
+      <div class="nbAuthBody">
+        <div class="nbAuthGrid">
+          <div class="nbAuthField">
+            <label>E-mail</label>
+            <input value="${escapeAttr(email || "-")}" readonly />
+          </div>
+          <div class="nbAuthField">
+            <label>Perfil</label>
+            <input value="${escapeAttr(profile.role || "cliente")}" readonly />
+          </div>
+          <div class="nbAuthField">
+            <label>Status</label>
+            <input value="${escapeAttr(profile.status || "bloqueado")}" readonly />
+          </div>
+        </div>
+        <div class="nbAuthError" style="margin-top:12px">${escapeHtml(message || "Aguardando liberação do administrador.")}</div>
+        <div class="nbAuthActions">
+          <button class="nbAuthBtn secondary" id="nbAuthLogoutBlocked">Sair</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("nbAuthLogoutBlocked")?.addEventListener("click", async () => {
+    const supabase = window.__NB_SUPABASE__;
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    sessionStorage.removeItem("qa_current_project_id");
+    location.hash = "#/projects";
+  });
+}
+
+function renderAuthOverlay(supabase, initialTab = "login", errorMsg = "", okMsg = "") {
+  ensureAuthMount();
+  const overlay = document.getElementById("nbAuthOverlay");
+  overlay.hidden = false;
+
+  overlay.innerHTML = `
+    <div class="nbAuthCard">
+      <div class="nbAuthHeader">
+        <h2>Controle de acesso</h2>
+        <p>Entre com seu e-mail e senha. Clientes novos podem se cadastrar, mas o uso só será liberado após ativação no painel admin.</p>
+      </div>
+      <div class="nbAuthBody">
+        <div class="nbAuthTabs">
+          <button type="button" data-tab="login" class="${initialTab === "login" ? "active" : ""}">Entrar</button>
+          <button type="button" data-tab="signup" class="${initialTab === "signup" ? "active" : ""}">Cadastrar</button>
+          <button type="button" data-tab="reset" class="${initialTab === "reset" ? "active" : ""}">Recuperar senha</button>
+        </div>
+
+        <div id="nbAuthTabMount"></div>
+
+        ${errorMsg ? `<div class="nbAuthError">${escapeHtml(errorMsg)}</div>` : ""}
+        ${okMsg ? `<div class="nbAuthOk">${escapeHtml(okMsg)}</div>` : ""}
+        <div class="nbAuthHint">
+          Admins com e-mail autorizado entram com acesso total. Clientes entram por login e senha e só usam o sistema quando estiverem com status <b>ativo</b>.
+        </div>
+      </div>
+    </div>
+  `;
+
+  overlay.querySelectorAll("[data-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      renderAuthOverlay(supabase, btn.getAttribute("data-tab"));
+    });
+  });
+
+  const mount = overlay.querySelector("#nbAuthTabMount");
+
+  if (initialTab === "signup") {
+    mount.innerHTML = `
+      <div class="nbAuthGrid">
+        <div class="nbAuthField">
+          <label>Nome</label>
+          <input id="nbSignName" placeholder="Seu nome" />
+        </div>
+        <div class="nbAuthField">
+          <label>E-mail</label>
+          <input id="nbSignEmail" type="email" placeholder="voce@empresa.com" />
+        </div>
+        <div class="nbAuthField">
+          <label>Senha</label>
+          <input id="nbSignPass" type="password" placeholder="Digite sua senha" />
+        </div>
+        <div class="nbAuthField">
+          <label>Confirmar senha</label>
+          <input id="nbSignPass2" type="password" placeholder="Repita sua senha" />
+        </div>
+      </div>
+      <div class="nbAuthActions">
+        <button class="nbAuthBtn primary" id="nbSignSubmit">Cadastrar</button>
+      </div>
+    `;
+
+    mount.querySelector("#nbSignSubmit")?.addEventListener("click", async () => {
+      const full_name = (mount.querySelector("#nbSignName")?.value || "").trim();
+      const email = (mount.querySelector("#nbSignEmail")?.value || "").trim().toLowerCase();
+      const password = (mount.querySelector("#nbSignPass")?.value || "");
+      const confirm = (mount.querySelector("#nbSignPass2")?.value || "");
+
+      if (!full_name || !email || !password || !confirm) {
+        renderAuthOverlay(supabase, "signup", "Preencha todos os campos.");
+        return;
+      }
+      if (password !== confirm) {
+        renderAuthOverlay(supabase, "signup", "As senhas não conferem.");
+        return;
+      }
+      if (password.length < 6) {
+        renderAuthOverlay(supabase, "signup", "A senha precisa ter pelo menos 6 caracteres.");
+        return;
+      }
+
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name }
+        }
+      });
+
+      if (error) {
+        renderAuthOverlay(supabase, "signup", error.message || "Falha ao cadastrar.");
+        return;
+      }
+
+      renderAuthOverlay(
+        supabase,
+        "login",
+        "",
+        "Cadastro realizado. Seu acesso ficará disponível quando um administrador liberar seu e-mail."
+      );
+    });
+    return;
+  }
+
+  if (initialTab === "reset") {
+    mount.innerHTML = `
+      <div class="nbAuthGrid">
+        <div class="nbAuthField">
+          <label>E-mail</label>
+          <input id="nbResetEmail" type="email" placeholder="voce@empresa.com" />
+        </div>
+      </div>
+      <div class="nbAuthActions">
+        <button class="nbAuthBtn primary" id="nbResetSubmit">Enviar recuperação</button>
+      </div>
+    `;
+
+    mount.querySelector("#nbResetSubmit")?.addEventListener("click", async () => {
+      const email = (mount.querySelector("#nbResetEmail")?.value || "").trim().toLowerCase();
+      if (!email) {
+        renderAuthOverlay(supabase, "reset", "Informe o e-mail.");
+        return;
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) {
+        renderAuthOverlay(supabase, "reset", error.message || "Falha ao enviar recuperação.");
+        return;
+      }
+
+      renderAuthOverlay(supabase, "login", "", "Solicitação enviada. Verifique seu e-mail.");
+    });
+    return;
+  }
+
+  mount.innerHTML = `
+    <div class="nbAuthGrid">
+      <div class="nbAuthField">
+        <label>E-mail</label>
+        <input id="nbLoginEmail" type="email" placeholder="voce@empresa.com" />
+      </div>
+      <div class="nbAuthField">
+        <label>Senha</label>
+        <input id="nbLoginPass" type="password" placeholder="Digite sua senha" />
+      </div>
+    </div>
+    <div class="nbAuthActions">
+      <button class="nbAuthBtn primary" id="nbLoginSubmit">Entrar</button>
+    </div>
+  `;
+
+  mount.querySelector("#nbLoginSubmit")?.addEventListener("click", async () => {
+    const email = (mount.querySelector("#nbLoginEmail")?.value || "").trim().toLowerCase();
+    const password = (mount.querySelector("#nbLoginPass")?.value || "");
+
+    if (!email || !password) {
+      renderAuthOverlay(supabase, "login", "Informe e-mail e senha.");
+      return;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      renderAuthOverlay(supabase, "login", error.message || "Falha ao entrar.");
+    }
+  });
+}
+
+function injectSidebarCard(supabase, user, profile) {
+  const sideBottom = document.querySelector(".sideBottom");
+  if (!sideBottom) return;
+
+  let card = document.getElementById("nbAuthSidebarCard");
+  if (!card) {
+    card = document.createElement("div");
+    card.id = "nbAuthSidebarCard";
+    sideBottom.appendChild(card);
+  }
+
+  const role = String(profile?.role || "cliente").toLowerCase();
+  const status = String(profile?.status || "bloqueado").toLowerCase();
+
+  card.innerHTML = `
+    <div class="nbAuthUserEmail">${escapeHtml(user?.email || "-")}</div>
+    <div class="nbAuthMeta">
+      Perfil: <b>${escapeHtml(role)}</b><br/>
+      Status: <b>${escapeHtml(status)}</b>
+    </div>
+    <div class="nbAuthSidebarButtons">
+      ${role === "admin" ? '<button class="nbAdminBtn primary" id="nbOpenAdminAccess">Admin · Controle de Acesso</button>' : ""}
+      <button class="nbAuthBtn secondary" id="nbAuthLogoutSidebar">Sair</button>
+    </div>
+  `;
+
+  card.querySelector("#nbAuthLogoutSidebar")?.addEventListener("click", async () => {
+    await supabase.auth.signOut();
+    sessionStorage.removeItem("qa_current_project_id");
+    location.hash = "#/projects";
+  });
+
+  card.querySelector("#nbOpenAdminAccess")?.addEventListener("click", () => {
+    openAdminModal(supabase);
+  });
+}
+
+function removeSidebarCard() {
+  document.getElementById("nbAuthSidebarCard")?.remove();
+}
+
+function removeAdminModal() {
+  document.getElementById("nbAdminModal")?.remove();
+}
+
+function openAdminModal(supabase) {
+  removeAdminModal();
+
+  const modal = document.createElement("div");
+  modal.id = "nbAdminModal";
+  modal.innerHTML = `
+    <div class="nbAdminShell">
+      <div class="nbAdminHeader">
+        <div>
+          <h3>Controle de acesso</h3>
+          <div class="nbSmallNote">Pesquisar por e-mail, liberar, bloquear e ajustar o perfil do usuário.</div>
+        </div>
+        <div class="nbAdminActions">
+          <button class="nbAdminBtn secondary" id="nbAdminClose">Fechar</button>
+        </div>
+      </div>
+      <div class="nbAdminBody">
+        <div class="nbAdminSearch">
+          <input id="nbAdminQuery" placeholder="Pesquisar por e-mail" />
+          <button class="nbAdminBtn primary" id="nbAdminSearchBtn">Buscar</button>
+          <button class="nbAdminBtn secondary" id="nbAdminRefreshBtn">Atualizar</button>
+        </div>
+        <div id="nbAdminFeedback" class="nbSmallNote" style="margin-bottom:10px"></div>
+        <div style="overflow:auto">
+          <table class="nbAdminTable">
+            <thead>
+              <tr>
+                <th>E-mail</th>
+                <th>Nome</th>
+                <th>Perfil</th>
+                <th>Status</th>
+                <th>Criado em</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="nbAdminRows">
+              <tr><td colspan="6">Carregando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  modal.querySelector("#nbAdminClose")?.addEventListener("click", () => {
+    removeAdminModal();
+  });
+
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) removeAdminModal();
+  });
+
+  modal.querySelector("#nbAdminSearchBtn")?.addEventListener("click", () => {
+    loadAdminRows(supabase, modal, (modal.querySelector("#nbAdminQuery")?.value || "").trim());
+  });
+
+  modal.querySelector("#nbAdminRefreshBtn")?.addEventListener("click", () => {
+    modal.querySelector("#nbAdminQuery").value = "";
+    loadAdminRows(supabase, modal, "");
+  });
+
+  loadAdminRows(supabase, modal, "");
+}
+
+async function loadAdminRows(supabase, modal, query) {
+  const rows = modal.querySelector("#nbAdminRows");
+  const feedback = modal.querySelector("#nbAdminFeedback");
+  rows.innerHTML = `<tr><td colspan="6">Carregando…</td></tr>`;
+  feedback.textContent = "Consultando usuários...";
+
+  let req = supabase
+    .from(ACCESS_TABLE)
+    .select("user_id,email,full_name,role,status,created_at,updated_at")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (query) {
+    req = req.ilike("email", `%${query}%`);
+  }
+
+  const { data, error } = await req;
+
+  if (error) {
+    rows.innerHTML = `<tr><td colspan="6">Falha ao carregar usuários.</td></tr>`;
+    feedback.textContent = error.message || "Falha ao carregar usuários.";
+    return;
+  }
+
+  if (!data || !data.length) {
+    rows.innerHTML = `<tr><td colspan="6">Nenhum usuário encontrado.</td></tr>`;
+    feedback.textContent = "Nenhum usuário encontrado.";
+    return;
+  }
+
+  feedback.textContent = `${data.length} usuário(s) carregado(s).`;
+
+  rows.innerHTML = data.map((item) => `
+    <tr data-user-id="${escapeAttr(item.user_id)}">
+      <td>${escapeHtml(item.email || "-")}</td>
+      <td>${escapeHtml(item.full_name || "-")}</td>
+      <td>
+        <select data-role>
+          <option value="cliente" ${String(item.role) === "cliente" ? "selected" : ""}>cliente</option>
+          <option value="admin" ${String(item.role) === "admin" ? "selected" : ""}>admin</option>
+        </select>
+      </td>
+      <td>
+        <select data-status>
+          <option value="ativo" ${String(item.status) === "ativo" ? "selected" : ""}>ativo</option>
+          <option value="bloqueado" ${String(item.status) === "bloqueado" ? "selected" : ""}>bloqueado</option>
+        </select>
+      </td>
+      <td>${formatDate(item.created_at)}</td>
+      <td>
+        <div class="nbAdminActions">
+          <button class="nbAdminBtn primary" data-save>Salvar</button>
+          <button class="nbAdminBtn secondary" data-activate>Ativar</button>
+          <button class="nbAdminBtn secondary" data-block>Bloquear</button>
+        </div>
+      </td>
+    </tr>
+  `).join("");
+
+  rows.querySelectorAll("[data-save]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const tr = btn.closest("tr");
+      const user_id = tr.getAttribute("data-user-id");
+      const role = tr.querySelector("[data-role]").value;
+      const status = tr.querySelector("[data-status]").value;
+      await updateAccessRow(supabase, user_id, { role, status }, feedback, () => loadAdminRows(supabase, modal, query));
+    });
+  });
+
+  rows.querySelectorAll("[data-activate]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const tr = btn.closest("tr");
+      const user_id = tr.getAttribute("data-user-id");
+      await updateAccessRow(supabase, user_id, { status: "ativo" }, feedback, () => loadAdminRows(supabase, modal, query));
+    });
+  });
+
+  rows.querySelectorAll("[data-block]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const tr = btn.closest("tr");
+      const user_id = tr.getAttribute("data-user-id");
+      await updateAccessRow(supabase, user_id, { status: "bloqueado" }, feedback, () => loadAdminRows(supabase, modal, query));
+    });
+  });
+}
+
+async function updateAccessRow(supabase, userId, payload, feedback, reload) {
+  feedback.textContent = "Salvando alteração...";
+
+  const { error } = await supabase
+    .from(ACCESS_TABLE)
+    .update(payload)
+    .eq("user_id", userId);
+
+  if (error) {
+    feedback.textContent = error.message || "Falha ao salvar.";
+    return;
+  }
+
+  feedback.textContent = "Alteração salva com sucesso.";
+  await reload();
+}
+
+function formatDate(value) {
+  if (!value) return "-";
+  try {
+    return new Date(value).toLocaleString("pt-BR");
+  } catch {
+    return String(value);
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value);
+}
+/* === NB AUTH GATE PATCH START === */
+(function installNbAuthGate() {
+  if (window.__NB_AUTH_GATE_PATCHED__) return;
+  window.__NB_AUTH_GATE_PATCHED__ = true;
+
+  async function waitForSupabase(timeoutMs = 10000) {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      if (window.__NB_SUPABASE__) return window.__NB_SUPABASE__;
+      await new Promise(resolve => setTimeout(resolve, 120));
+    }
+    throw new Error("Supabase nao foi inicializado a tempo.");
+  }
+
+  async function fetchMeuPerfil(supabase) {
+    const { data, error } = await supabase.rpc("meu_perfil");
+    if (error) throw error;
+    if (Array.isArray(data)) return data[0] || null;
+    return data || null;
+  }
+
+  window.__NB_REQUIRE_AUTH__ = async function __NB_REQUIRE_AUTH__() {
+    const supabase = await waitForSupabase();
+
+    const sessionResult = await supabase.auth.getSession();
+    const sessionError = sessionResult?.error || null;
+    const session = sessionResult?.data?.session || null;
+
+    if (sessionError) {
+      console.error("[AUTH] Erro ao obter sessao:", sessionError);
+      return { ok: false, reason: "session-error", error: sessionError };
+    }
+
+    window.__NB_LAST_SESSION__ = session;
+
+    if (!session) {
+      console.warn("[AUTH] Nenhuma sessao ativa. Login exigido.");
+      return { ok: false, reason: "no-session" };
+    }
+
+    let perfil = null;
+    try {
+      perfil = await fetchMeuPerfil(supabase);
+    } catch (perfilError) {
+      console.error("[AUTH] Erro ao consultar meu_perfil():", perfilError);
+      return { ok: false, reason: "perfil-error", error: perfilError };
+    }
+
+    if (!perfil) {
+      try { await supabase.auth.signOut(); } catch (_) {}
+      return { ok: false, reason: "perfil-ausente" };
+    }
+
+    const status = String(perfil.status || "").toLowerCase();
+    if (status !== "liberado") {
+      try { await supabase.auth.signOut(); } catch (_) {}
+      return { ok: false, reason: status || "status-invalido", perfil };
+    }
+
+    window.__NB_ACCESS_PROFILE__ = perfil;
+    return { ok: true, session, perfil };
+  };
+
+  waitForSupabase()
+    .then((supabase) => {
+      if (window.__NB_AUTH_RELOAD_INSTALLED__) return;
+      window.__NB_AUTH_RELOAD_INSTALLED__ = true;
+
+      supabase.auth.onAuthStateChange((_event, session) => {
+        window.__NB_LAST_SESSION__ = session || null;
+
+        if (session && !window.__NB_APP_BOOTED__) {
+          setTimeout(() => {
+            window.location.reload();
+          }, 150);
+        }
+      });
+    })
+    .catch((err) => {
+      console.error("[AUTH] Falha ao instalar listener de autenticacao:", err);
+    });
+})();
+/* === NB AUTH GATE PATCH END === */
+

@@ -1,0 +1,24 @@
+﻿{
+    "pack":  "audit-policy",
+    "version":  "1.0.0",
+    "domain":  "app-caracterizacao-solo-nb",
+    "createdAt":  "2026-03-19T16:13:53-03:00",
+    "mode":  "local-first",
+    "eventTypes":  [
+                       "workflow_transition",
+                       "analysis_snapshot",
+                       "manual_override",
+                       "emission_registered"
+                   ],
+    "requiredBase":  [
+                         "id",
+                         "timestamp",
+                         "type",
+                         "actor"
+                     ],
+    "snapshotStrategy":  {
+                             "enabled":  true,
+                             "triggerOnTransition":  true,
+                             "includeAnalysisMeta":  true
+                         }
+}

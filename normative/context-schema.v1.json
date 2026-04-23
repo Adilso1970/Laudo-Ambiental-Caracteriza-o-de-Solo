@@ -1,0 +1,34 @@
+﻿{
+    "pack":  "context-schema",
+    "version":  "1.0.0",
+    "domain":  "app-caracterizacao-solo-nb",
+    "createdAt":  "2026-03-19T15:58:00-03:00",
+    "description":  "Schema lógico esperado pela camada de validação cruzada",
+    "fields":  {
+                   "projeto":  {
+                                   "id":  "boolean|string",
+                                   "codigo":  "string"
+                               },
+                   "agua":  {
+                                "alteracaoIdentificada":  "boolean"
+                            },
+                   "flora":  {
+                                 "impactoIdentificado":  "boolean"
+                             },
+                   "fauna":  {
+                                 "impactoIdentificado":  "boolean"
+                             },
+                   "solo":  {
+                                "indicioRelevante":  "boolean"
+                            },
+                   "evidencias":  {
+                                      "quantidade":  "number"
+                                  },
+                   "conformidade":  {
+                                        "status":  "string"
+                                    },
+                   "laudo":  {
+                                 "temObservacaoAgua":  "boolean"
+                             }
+               }
+}

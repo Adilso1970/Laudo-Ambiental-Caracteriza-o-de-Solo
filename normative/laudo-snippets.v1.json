@@ -1,0 +1,24 @@
+﻿{
+    "pack":  "laudo-snippets",
+    "version":  "1.0.0",
+    "domain":  "app-caracterizacao-solo-nb",
+    "createdAt":  "2026-03-19T16:05:48-03:00",
+    "snippets":  {
+                     "resumoTecnico":  {
+                                           "withOccurrences":  "A análise automática identificou {total} ocorrência(s) técnica(s) relevante(s) para revisão.",
+                                           "clean":  "A análise automática não identificou ocorrências técnicas relevantes para revisão."
+                                       },
+                     "conformidade":  {
+                                          "blocking":  "Existem pendências técnicas que impedem a emissão automática no estado atual.",
+                                          "clear":  "Não foram identificados impedimentos automáticos para emissão, mantendo-se a revisão técnica final."
+                                      },
+                     "pendencias":  {
+                                        "intro":  "Pendências prioritárias detectadas:",
+                                        "empty":  "Não há pendências automáticas em aberto."
+                                    },
+                     "recomendacoes":  {
+                                           "intro":  "Recomenda-se a adoção das seguintes providências:",
+                                           "empty":  "Sem recomendações automáticas adicionais."
+                                       }
+                 }
+}

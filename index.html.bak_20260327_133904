@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CARACTERIZAÇÃO DE SOLO - N.E.</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles/app.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brandLogo" src="data:image/webp;base64,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" alt="Marca NB" />
+        <div class="brandText">
+          <h1>CARACTERIZAÇÃO DE SOLO</h1>
+        </div>
+      </div>
+
+      <nav id="nav" class="nav"></nav>
+
+      <div class="sideBottom">
+        <div id="routeIndicator" class="badge secondary shellBadge">Módulo: Projetos</div>
+        <div class="small" id="projectStatus">Projeto atual: nenhum</div>
+        <div class="small" id="onlineStatus">Status: verificando…</div>
+        <div class="small">GPS: <span id="gpsStatus">—</span></div>
+        <div class="small">Versão: <span id="appVersion"></span></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="container">
+        <div id="toast" class="toast" hidden></div>
+        <section id="app" class="card appShell"></section>
+      </div>
+      <footer class="footer"></footer>
+    </main>
+  </div>
+
+  <script type="module" src="app.js"></script>
+  <script type="module" src="auth_bootstrap.js"></script>
+</body>
+</html>
+
+

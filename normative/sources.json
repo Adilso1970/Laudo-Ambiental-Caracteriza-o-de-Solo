@@ -1,0 +1,29 @@
+﻿{
+    "version":  "1.0.0",
+    "domain":  "app-caracterizacao-solo-nb",
+    "createdAt":  "2026-03-19T15:51:55-03:00",
+    "mode":  "local-first",
+    "sources":  [
+                    {
+                        "id":  "BR.CONAMA.420.2009",
+                        "orgao":  "CONAMA",
+                        "titulo":  "Resolução CONAMA 420/2009",
+                        "status":  "referencia-base",
+                        "uso":  "parametrização futura do motor normativo"
+                    },
+                    {
+                        "id":  "BR.IBAMA.RAPP",
+                        "orgao":  "IBAMA",
+                        "titulo":  "Obrigações ambientais correlatas do RAPP",
+                        "status":  "referencia-complementar",
+                        "uso":  "rastreabilidade e contexto operacional"
+                    },
+                    {
+                        "id":  "BR.CETESB.AREAS_CONTAMINADAS",
+                        "orgao":  "CETESB",
+                        "titulo":  "Referenciais técnicos para áreas contaminadas",
+                        "status":  "referencia-complementar",
+                        "uso":  "parâmetros técnicos e aprofundamento futuro"
+                    }
+                ]
+}

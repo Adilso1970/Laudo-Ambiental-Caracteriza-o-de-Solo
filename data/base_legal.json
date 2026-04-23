@@ -1,0 +1,123 @@
+{
+  "version": "2026.03.02",
+  "lastUpdate": "2026-03-02",
+  "refs": [
+    {
+      "id": "CONAMA_237_1997",
+      "title": "Resolução CONAMA 237/1997 - Licenciamento ambiental",
+      "trigger_tags": [
+        "licenciamento",
+        "lp",
+        "li",
+        "lo"
+      ],
+      "citation_url": "https://conama.mma.gov.br/?id=237&option=com_sisconama&task=arquivo.download"
+    },
+    {
+      "id": "CONAMA_01_1986",
+      "title": "Resolução CONAMA 01/1986 - EIA/RIMA e diretrizes gerais",
+      "trigger_tags": [
+        "eia",
+        "rima",
+        "diagnostico"
+      ],
+      "citation_url": "https://conama.mma.gov.br/?id=745&option=com_sisconama&task=arquivo.download"
+    },
+    {
+      "id": "LEI_12651_2012",
+      "title": "Lei 12.651/2012 - Código Florestal (APP, vegetação nativa)",
+      "trigger_tags": [
+        "app",
+        "nascente",
+        "curso_dagua",
+        "vegetacao_nativa"
+      ],
+      "citation_url": "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2012/lei/l12651.htm"
+    },
+    {
+      "id": "CONAMA_357_2005",
+      "title": "Resolução CONAMA 357/2005 - Classificação de águas superficiais",
+      "trigger_tags": [
+        "agua_superficial",
+        "enquadramento"
+      ],
+      "citation_url": "https://www.gov.br/ibama/pt-br/assuntos/fiscalizacao-e-protecao-ambiental/emergencias-ambientais/manchasdeoleo/arquivos/2023/res_conama_357_2005_classificacao_corpos_agua_rtfcda_altrd_res_393_2007_397_2008_410_2009_430_2011.pdf"
+    },
+    {
+      "id": "CONAMA_396_2008",
+      "title": "Resolução CONAMA 396/2008 - Classificação e diretrizes para águas subterrâneas",
+      "trigger_tags": [
+        "agua_subterranea",
+        "poco"
+      ],
+      "citation_url": "https://conama.mma.gov.br/?id=545&option=com_sisconama&task=arquivo.download"
+    },
+    {
+      "id": "LEI_9433_1997",
+      "title": "Lei 9.433/1997 - Política Nacional de Recursos Hídricos (outorga)",
+      "trigger_tags": [
+        "outorga",
+        "captacao",
+        "lancamento"
+      ],
+      "citation_url": "https://www.planalto.gov.br/ccivil_03/leis/l9433.htm"
+    },
+    {
+      "id": "CONAMA_420_2009",
+      "title": "Resolução CONAMA 420/2009 - Solo e gerenciamento de áreas contaminadas",
+      "trigger_tags": [
+        "passivo",
+        "contaminacao",
+        "investigacao"
+      ],
+      "citation_url": "https://conama.mma.gov.br/index.php?id=17379&option=com_sisconama&task=documento.download"
+    },
+    {
+      "id": "SNUC_9985_2000",
+      "title": "Lei 9.985/2000 - SNUC (Unidades de Conservação)",
+      "trigger_tags": [
+        "uc",
+        "snuc",
+        "zona_amortecimento"
+      ],
+      "citation_url": "https://www.planalto.gov.br/ccivil_03/leis/l9985.htm"
+    },
+    {
+      "id": "CONAMA_428_2010",
+      "title": "Resolução CONAMA 428/2010 - Autorização/anuência em UC e ZA",
+      "trigger_tags": [
+        "uc",
+        "zona_amortecimento"
+      ],
+      "citation_url": "https://conama.mma.gov.br/?id=622&option=com_sisconama&task=arquivo.download"
+    },
+    {
+      "id": "LEI_11428_2006",
+      "title": "Lei 11.428/2006 - Lei da Mata Atlântica",
+      "trigger_tags": [
+        "mata_atlantica",
+        "supressao"
+      ],
+      "citation_url": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11428.htm"
+    },
+    {
+      "id": "PORTARIA_MMA_148_2022",
+      "title": "Portaria MMA 148/2022 - Lista nacional de espécies ameaçadas",
+      "trigger_tags": [
+        "ameacada",
+        "fauna",
+        "flora"
+      ],
+      "citation_url": "https://www.in.gov.br/en/web/dou/-/portaria-mma-n-148-de-7-de-junho-de-2022-406272733"
+    },
+    {
+      "id": "LEI_10257_2001",
+      "title": "Lei 10.257/2001 - Estatuto da Cidade (EIV - art. 36)",
+      "trigger_tags": [
+        "eiv",
+        "impacto_vizinhanca"
+      ],
+      "citation_url": "https://www.planalto.gov.br/ccivil_03/leis/leis_2001/l10257.htm"
+    }
+  ]
+}

@@ -1,0 +1,629 @@
+﻿import { AmbientalDB, createEmptyProject } from "./lib/db.js";
+import { loadBaseLegalLocal, syncBaseLegalOnline } from "./lib/rules.js";
+
+import { renderProjects } from "./pages/projects.js";
+import { renderWizard10 } from "./pages/wizard_10_itens.js";
+import { renderAgua } from "./pages/agua.js";
+import { renderFlora } from "./pages/flora.js";
+import { renderFauna } from "./pages/fauna.js";
+import { renderSolo } from "./pages/solo.js";
+import { renderEvidencias } from "./pages/evidencias.js";
+import { renderConformidade } from "./pages/conformidade.js";
+import { renderLaudo } from "./pages/laudo.js";
+import { renderVegetacaoSupressao } from "./pages/vegetacao_supressao.js";
+
+import { runAutomaticAnalysis } from "./core/analysis/analysis-pipeline.js";
+
+const APP_VERSION = "v1.1.3 · CARACTERIZAÇÃO DE SOLO";
+document.getElementById("appVersion").textContent = APP_VERSION;
+
+const db = new AmbientalDB();
+
+const appEl = document.getElementById("app");
+const navEl = document.getElementById("nav");
+const toastEl = document.getElementById("toast");
+const onlineStatusEl = document.getElementById("onlineStatus");
+const gpsStatusEl = document.getElementById("gpsStatus");
+const projectStatusEl = document.getElementById("projectStatus");
+const routeIndicatorEl = document.getElementById("routeIndicator");
+
+const routes = [
+  { path: "#/projects", label: "Projetos" },
+  { path: "#/wizard", label: "10 itens" },
+  { path: "#/agua", label: "Água" },
+  { path: "#/flora", label: "Flora" },
+  { path: "#/fauna", label: "Fauna" },
+  { path: "#/solo", label: "Solo/Processos" },
+  { path: "#/evidencias", label: "Evidências" },
+  { path: "#/vegetacao", label: "Vegetação" },
+  { path: "#/conformidade", label: "Conformidade" },
+  { path: "#/laudo", label: "Laudo" }
+];
+
+function toast(msg, ms = 2600) {
+  toastEl.hidden = false;
+  toastEl.textContent = msg;
+  setTimeout(() => (toastEl.hidden = true), ms);
+}
+
+function updateOnlineStatus() {
+  if (!onlineStatusEl) return;
+  const online = navigator.onLine;
+  onlineStatusEl.textContent = online ? "Status: online" : "Status: offline";
+}
+
+async function updateGpsStatus() {
+  if (!gpsStatusEl) return;
+  try {
+    if (!("permissions" in navigator) || !navigator.permissions.query) {
+      gpsStatusEl.textContent = "—";
+      return;
+    }
+    const st = await navigator.permissions.query({ name: "geolocation" });
+    const label = st.state === "granted" ? "OK" : st.state === "denied" ? "BLOQUEADO" : "PERGUNTAR";
+    gpsStatusEl.textContent = label;
+    st.onchange = () => { updateGpsStatus(); };
+  } catch (e) {
+    gpsStatusEl.textContent = "—";
+  }
+}
+
+function getRoute() {
+  return location.hash || "#/projects";
+}
+
+function getCurrentRouteMeta() {
+  const cur = getRoute();
+  return routes.find(r => cur.startsWith(r.path)) || routes[0];
+}
+
+function getFlowPosition(currentPath = getRoute()) {
+  const idx = routes.findIndex(r => currentPath.startsWith(r.path));
+  return {
+    current: idx >= 0 ? idx + 1 : 1,
+    total: routes.length
+  };
+}
+
+function setActiveNav(priorityPath = null) {
+  const cur = getRoute();
+  navEl.innerHTML = routes.map(r => {
+    const cls = cur.startsWith(r.path) ? "active" : "";
+    const hint = priorityPath && r.path === priorityPath
+      ? '<span class="navHint">Prioritário</span>'
+      : '';
+    return `
+      <a class="${cls}" href="${r.path}">
+        <span class="navTextWrap">
+          <span class="navText">${r.label}</span>
+          ${hint}
+        </span>
+      </a>
+    `;
+  }).join("");
+
+  const routeMeta = getCurrentRouteMeta();
+
+  if (routeIndicatorEl) {
+    routeIndicatorEl.textContent = `Módulo: ${routeMeta.label}`;
+  }
+
+  document.title = `${routeMeta.label} | CARACTERIZAÇÃO DE SOLO`;
+}
+
+async function getCurrentProject() {
+  const id = sessionStorage.getItem("qa_current_project_id");
+  if (!id) return null;
+  return await db.getProject(id);
+}
+
+async function updateCurrentProjectInfo() {
+  if (!projectStatusEl) return;
+  const p = await getCurrentProject();
+  projectStatusEl.textContent = p ? `Projeto atual: ${p.name}` : "Projeto atual: nenhum";
+}
+
+async function ensureProjectOrRedirect() {
+  const p = await getCurrentProject();
+  if (!p) {
+    location.hash = "#/projects";
+    toast("Selecione ou crie um projeto para continuar.");
+    return null;
+  }
+  return p;
+}
+
+function formatWorkflowStatus(value = "indefinido") {
+  const map = {
+    rascunho: "Rascunho",
+    em_preenchimento: "Em preenchimento",
+    em_revisao_tecnica: "Em revisão técnica",
+    com_pendencias: "Com pendências técnicas",
+    aprovado_para_emissao: "Apto para emissão",
+    emitido: "Emitido",
+    arquivado: "Arquivado",
+    indisponivel: "Leitura indisponível",
+    indefinido: "Indefinido"
+  };
+
+  const normalized = String(value ?? "indefinido").trim().toLowerCase();
+  return map[normalized] ?? String(value ?? "Indefinido");
+}
+
+function getPriorityModulePath(summary = {}) {
+  const first = String((summary?.blockingReasons && summary.blockingReasons[0]) || "").trim();
+  const normalized = first
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  if (!normalized) return null;
+
+  if (normalized.includes("evidenc")) return "#/evidencias";
+  if (normalized.includes("conform")) return "#/conformidade";
+  if (normalized.includes("agua")) return "#/agua";
+  if (normalized.includes("solo")) return "#/solo";
+  if (normalized.includes("flora")) return "#/flora";
+  if (normalized.includes("fauna")) return "#/fauna";
+
+  return null;
+}
+function buildAnalysisContext(projeto = {}) {
+  const evidencias = projeto?.evidencias ?? projeto?.evidence ?? projeto?.anexos ?? [];
+  return {
+    ...projeto,
+    id: projeto?.id,
+    projetoId: projeto?.id,
+    projeto: {
+      ...(projeto?.projeto ?? {}),
+      id: projeto?.id ?? projeto?.projeto?.id ?? null,
+      codigo: projeto?.id ?? projeto?.projeto?.codigo ?? ""
+    },
+    agua: projeto?.agua ?? projeto?.water ?? {},
+    flora: projeto?.flora ?? {},
+    fauna: projeto?.fauna ?? {},
+    solo: projeto?.solo ?? projeto?.soloProcessos ?? projeto?.solo_processos ?? projeto?.processos ?? {},
+    evidencias,
+    conformidade: projeto?.conformidade ?? projeto?.compliance ?? {},
+    laudo: projeto?.laudo ?? projeto?.report ?? {}
+  };
+}
+
+function buildDiagnosticSummary(analysisResult) {
+  if (!analysisResult || typeof analysisResult !== "object") {
+    return {
+      available: false,
+      total: 0,
+      status: "indisponivel",
+      statusLabel: formatWorkflowStatus("indisponivel"),
+      emitLabel: "LEITURA INDISPONÍVEL",
+      emitClass: "secondary",
+      chips: [],
+      blockingReasons: [],
+      reviewRecommended: false
+    };
+  }
+
+  const summary = analysisResult?.diagnostic?.summary ?? {};
+  const findings = analysisResult?.findings ?? {};
+  const workflowHints = analysisResult?.workflowHints ?? {};
+  const canEmit = Boolean(findings?.emissionGate?.canEmit);
+
+  return {
+    available: true,
+    total: summary?.total ?? 0,
+    status: workflowHints?.suggestedStatus ?? "indefinido",
+    statusLabel: formatWorkflowStatus(workflowHints?.suggestedStatus ?? "indefinido"),
+    emitLabel: canEmit ? "APTO PARA EMISSÃO" : "PENDÊNCIA TÉCNICA EM ABERTO",
+    emitClass: canEmit ? "ok" : "warn",
+    chips: [
+      { label: `Crítico: ${summary?.bySeverity?.critico ?? 0}`, className: "danger" },
+      { label: `Atenção: ${summary?.bySeverity?.atencao ?? 0}`, className: "warn" },
+      { label: `Alerta: ${summary?.bySeverity?.alerta ?? 0}`, className: "warn" },
+      { label: `Info: ${summary?.bySeverity?.info ?? 0}`, className: "secondary" }
+    ],
+    blockingReasons: findings?.emissionGate?.reasons ?? [],
+    reviewRecommended: Boolean(summary?.reviewRecommended)
+  };
+}
+
+function formatBlockingReason(reason = "") {
+  const raw = String(reason ?? "").trim();
+  const normalized = raw
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  if (!normalized) {
+    return "Nenhuma pendência técnica automática detectada no estado atual.";
+  }
+
+  if (normalized.includes("evidenc")) {
+    return "Pendência detectada: faltam evidências mínimas para liberar o projeto tecnicamente.";
+  }
+
+  if (normalized.includes("conform")) {
+    return "Pendência detectada: a conclusão de conformidade precisa de revisão técnica.";
+  }
+
+  if (normalized.includes("agua")) {
+    return "Pendência detectada: existe informação de Água que precisa ser refletida no texto técnico do laudo.";
+  }
+
+  if (normalized.includes("solo")) {
+    return "Pendência detectada: existe registro em Solo/Processos que exige comprovação técnica vinculada.";
+  }
+
+  return `Pendência detectada: ${raw}`;
+}
+
+function getNextTechnicalStep(blockingReasons = []) {
+  const first = String((blockingReasons && blockingReasons[0]) || "").trim();
+  const normalized = first
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  if (!normalized) {
+    return "Seguir preenchimento normal do fluxo.";
+  }
+
+  if (normalized.includes("evidenc")) {
+    return "Próximo passo: anexar evidências do projeto na seção Evidências.";
+  }
+
+  if (normalized.includes("conform")) {
+    return "Próximo passo: revisar a seção Conformidade antes da emissão.";
+  }
+
+  if (normalized.includes("agua")) {
+    return "Próximo passo: revisar Água e depois validar o texto do Laudo.";
+  }
+
+  if (normalized.includes("solo")) {
+    return "Próximo passo: revisar Solo/Processos e vincular comprovação técnica.";
+  }
+
+  return "Próximo passo: revisar os dados técnicos do projeto e salvar novamente.";
+}
+function renderDiagnosticBanner(summary) {
+  if (!summary?.available) {
+    return `
+      <div class="diagnosticBanner">
+        <div class="diagnosticBannerHeader">
+          <div>
+            <div class="moduleEyebrow">Leitura técnica automática</div>
+            <h3>Diagnóstico técnico indisponível</h3>
+          </div>
+          <span class="badge secondary">LEITURA INDISPONÍVEL</span>
+        </div>
+        <p>O núcleo técnico não conseguiu gerar a leitura automática neste momento.</p>
+      </div>
+    `;
+  }
+
+  const chips = (summary.chips || [])
+    .map(chip => `<span class="badge ${chip.className}">${chip.label}</span>`)
+    .join("");
+
+  const primaryReason = formatBlockingReason(summary.blockingReasons?.[0]);
+  const nextStep = getNextTechnicalStep(summary.blockingReasons);
+
+  const reasons = summary.blockingReasons?.length
+    ? `
+      <div class="diagnosticPrimary">${primaryReason}</div>
+      <div class="diagnosticNext">
+        <span class="diagNextLabel">Próximo passo sugerido</span>
+        <strong>${nextStep}</strong>
+      </div>
+    `
+    : `<div class="diagnosticHint">Nenhuma pendência técnica automática detectada no estado atual.</div>`;
+
+  return `
+    <div class="diagnosticBanner">
+      <div class="diagnosticBannerHeader">
+        <div>
+          <div class="moduleEyebrow">Leitura técnica automática</div>
+          <h3>Resumo técnico do projeto atual</h3>
+        </div>
+        <span class="badge ${summary.emitClass}">${summary.emitLabel}</span>
+      </div>
+
+      <div class="diagGrid">
+        <div class="diagCard">
+          <span class="diagLabel">Ocorrências</span>
+          <strong>${summary.total}</strong>
+        </div>
+        <div class="diagCard">
+          <span class="diagLabel">Situação técnica</span>
+          <strong>${summary.statusLabel ?? summary.status}</strong>
+        </div>
+        <div class="diagCard">
+          <span class="diagLabel">Revisão técnica</span>
+          <strong>${summary.reviewRecommended ? "RECOMENDADA" : "NÃO INDICADA"}</strong>
+        </div>
+      </div>
+
+      <div class="diagChips">${chips}</div>
+      ${reasons}
+    </div>
+  `;
+}
+
+function buildFlowStepper(currentPath = getRoute()) {
+  const currentIndex = routes.findIndex(route => currentPath.startsWith(route.path));
+
+  return `
+    <div class="flowStepper">
+      ${routes.map((route, index) => {
+        const stateClass = index < currentIndex ? "done" : index === currentIndex ? "active" : "";
+        return `
+          <a class="flowStep ${stateClass}" href="${route.path}">
+            <span class="flowStepNum">${index + 1}</span>
+            <span class="flowStepLabel">${route.label}</span>
+          </a>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function buildModuleChrome({ routeLabel, projeto, analysisSummary, routePath }) {
+  const flow = getFlowPosition(routePath);
+
+  appEl.innerHTML = `
+    <section class="moduleChrome">
+      <div class="moduleHeader">
+        <div class="moduleHeaderMain">
+          <div class="moduleEyebrow">Fluxo técnico do laudo</div>
+          <div class="moduleHeaderTitleRow">
+            <h2>${routeLabel}</h2>
+            <span class="badge ok">Projeto em edição</span>
+          </div>
+          <p>Projeto atual: <b>${projeto?.name || "-"}</b></p>
+        </div>
+
+        <div class="moduleHeaderMeta">
+          <div class="moduleMetaCard">
+            <span class="moduleMetaLabel">Módulo atual</span>
+            <strong>${routeLabel}</strong>
+          </div>
+          <div class="moduleMetaCard">
+            <span class="moduleMetaLabel">Projeto</span>
+            <strong>${projeto?.name || "-"}</strong>
+          </div>
+          <div class="moduleMetaCard">
+            <span class="moduleMetaLabel">Fluxo</span>
+            <strong>${flow.current} de ${flow.total}</strong>
+          </div>
+          <div class="moduleMetaCard">
+            <span class="moduleMetaLabel">Modo</span>
+            <strong>local-first</strong>
+          </div>
+        </div>
+      </div>
+
+      
+      ${renderDiagnosticBanner(analysisSummary)}
+
+      <div id="moduleContent" class="moduleContent"></div>
+    </section>
+  `;
+
+  return appEl.querySelector("#moduleContent");
+}
+
+function buildTechnicalToastMessage(summary = {}) {
+  if (!summary?.available) {
+    return "Projeto salvo. Leitura técnica indisponível no momento.";
+  }
+
+  const canEmit = String(summary?.emitLabel ?? "").toUpperCase().includes("APTO");
+  if (canEmit) {
+    return "Projeto salvo. Situação técnica: apto para emissão.";
+  }
+
+  const primaryReason = formatBlockingReason(summary?.blockingReasons?.[0]);
+  return `Projeto salvo. ${primaryReason}`;
+}
+async function persistProjectAndRefresh(updated, options = {}) {
+  updated.updatedAt = new Date().toISOString();
+  await db.putProject(updated);
+  await updateCurrentProjectInfo();
+
+  let analysisSummary = {
+    available: false,
+    total: 0,
+    status: "indisponivel",
+    statusLabel: formatWorkflowStatus("indisponivel"),
+    emitLabel: "LEITURA INDISPONÍVEL",
+    emitClass: "secondary",
+    chips: [],
+    blockingReasons: [],
+    reviewRecommended: false
+  };
+
+  try {
+    const analysisResult = await runAutomaticAnalysis(buildAnalysisContext(updated), { version: "v1" });
+    analysisSummary = buildDiagnosticSummary(analysisResult);
+  } catch (error) {
+    console.warn("Falha ao recalcular leitura técnica após salvar:", error);
+  }
+
+  const shouldRefresh = options?.refreshAfterSave !== false;
+  if (shouldRefresh) {
+    const __nbAuthGate = typeof window.__NB_REQUIRE_AUTH__ === "function"
+      ? await window.__NB_REQUIRE_AUTH__()
+      : { ok: true };
+
+    if (!__nbAuthGate.ok) {
+      console.warn("[AUTH] Gate bloqueou a entrada no app:", __nbAuthGate);
+      return;
+    }
+
+    window.__NB_APP_BOOTED__ = true;
+    await router();
+  }
+
+  const finalToast = options?.toastMessage || buildTechnicalToastMessage(analysisSummary);
+  if (finalToast) {
+    toast(finalToast);
+  }
+}
+
+async function router() {
+  updateOnlineStatus();
+  setActiveNav();
+  await updateCurrentProjectInfo();
+
+  const route = getRoute();
+  const routeMeta = getCurrentRouteMeta();
+  const baseLegal = await loadBaseLegalLocal();
+
+  if (route.startsWith("#/projects")) {
+    return renderProjects({
+      appEl,
+      db,
+      toast,
+      createEmptyProject,
+      baseLegal,
+      onOpen: async (id) => {
+        sessionStorage.setItem("qa_current_project_id", id);
+        await updateCurrentProjectInfo();
+        toast("Projeto aberto.");
+        location.hash = "#/wizard";
+      }
+    });
+  }
+
+  const projeto = await ensureProjectOrRedirect();
+  if (!projeto) return;
+
+  let analysisSummary = {
+    available: false,
+    total: 0,
+    status: "indisponivel",
+    statusLabel: formatWorkflowStatus("indisponivel"),
+    emitLabel: "LEITURA INDISPONÍVEL",
+    emitClass: "secondary",
+    chips: []
+  };
+
+  try {
+    const analysisResult = await runAutomaticAnalysis(buildAnalysisContext(projeto), { version: "v1" });
+    analysisSummary = buildDiagnosticSummary(analysisResult);
+  } catch (error) {
+    console.warn("Falha ao gerar leitura técnica automática:", error);
+  }
+
+  setActiveNav(getPriorityModulePath(analysisSummary));
+
+  const contentEl = buildModuleChrome({
+    routeLabel: routeMeta.label,
+    projeto,
+    analysisSummary,
+    routePath: route
+  });
+
+  const common = {
+    appEl: contentEl,
+    db,
+    toast,
+    projeto,
+    baseLegal,
+    setProjeto: async (updated, options = {}) => {
+      await persistProjectAndRefresh(updated, options);
+    }
+  };
+
+  if (route.startsWith("#/wizard")) return renderWizard10(common);
+  if (route.startsWith("#/agua")) return renderAgua(common);
+  if (route.startsWith("#/flora")) return renderFlora(common);
+  if (route.startsWith("#/fauna")) return renderFauna(common);
+  if (route.startsWith("#/solo")) return renderSolo(common);
+  if (route.startsWith("#/evidencias")) return renderEvidencias(common);
+  if (route.startsWith("#/vegetacao")) return renderVegetacaoSupressao(common);
+  if (route.startsWith("#/conformidade")) return renderConformidade(common);
+  if (route.startsWith("#/laudo")) return renderLaudo({ ...common, syncBaseLegalOnline });
+
+  appEl.innerHTML = `<p>Rota não encontrada.</p>`;
+}
+
+async function disableSWForLocal() {
+  if (!("serviceWorker" in navigator)) return;
+  const host = location.hostname;
+  if (host !== "localhost" && host !== "127.0.0.1") return;
+  try {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map(r => r.unregister()));
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => k.startsWith("qa-pwa-") ? caches.delete(k) : Promise.resolve()));
+    console.log("Service Worker desativado no modo local.");
+  } catch (e) {
+    console.warn("Falha ao desativar SW no modo local:", e);
+  }
+}
+
+async function registerSW() {
+  if (!("serviceWorker" in navigator)) return;
+  const host = location.hostname;
+  if (host === "localhost" || host === "127.0.0.1") return;
+  try {
+    await navigator.serviceWorker.register("./sw.js");
+  } catch (e) {
+    console.warn("SW falhou:", e);
+  }
+}
+
+window.addEventListener("hashchange", router);
+window.addEventListener("online", updateOnlineStatus);
+window.addEventListener("offline", updateOnlineStatus);
+
+async function boot() {
+  try {
+    await disableSWForLocal();
+    await registerSW();
+
+    const openWithTimeout = (ms) => Promise.race([
+      db.open(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("Timeout ao abrir o banco local (IndexedDB). Feche outras abas do app e tente novamente.")), ms))
+    ]);
+
+    await openWithTimeout(4000);
+    await updateGpsStatus();
+    const __nbAuthGate = typeof window.__NB_REQUIRE_AUTH__ === "function"
+      ? await window.__NB_REQUIRE_AUTH__()
+      : { ok: true };
+
+    if (!__nbAuthGate.ok) {
+      console.warn("[AUTH] Gate bloqueou a entrada no app:", __nbAuthGate);
+      return;
+    }
+
+    window.__NB_APP_BOOTED__ = true;
+    await router();
+  } catch (e) {
+    console.error("Falha no boot:", e);
+    updateOnlineStatus();
+    const msg = (e && e.message) ? e.message : String(e);
+    appEl.innerHTML = `
+      <h2>Erro ao iniciar o app</h2>
+      <p>O app não conseguiu concluir a inicialização.</p>
+      <pre style="white-space:pre-wrap;background:rgba(6,13,28,.92);padding:12px;border-radius:12px;color:#dcebff;border:1px solid rgba(255,255,255,.10);">${msg}</pre>
+      <p>Recarregue com <b>Ctrl+Shift+R</b>. Se persistir, execute <b>ABRIR_APP.bat</b> novamente.</p>
+    `;
+    toast("Erro ao iniciar. Veja detalhes na tela.", 6000);
+  }
+}
+
+await boot();
+
+
+
+
+
+
+
+
+
+
