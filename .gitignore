@@ -1,0 +1,55 @@
+# Local secrets and environment
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.key
+*.enc
+
+# Local databases and runtime data
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+pb_data/
+pb_data*/
+
+# Dependencies and generated output
+node_modules/
+.venv/
+venv/
+dist/
+build/
+.netlify/
+.cache/
+__pycache__/
+*.pyc
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Backups and release archives
+*.bak
+*.bak_*
+*.ANTES*
+*.before_restore
+*.moved_*
+*.quebrado_*
+*.ruim_*
+*.zip
+*.7z
+*.rar
+
+# Large local media/doc exports
+*.mp4
+*.mov
+*.avi
+*.mkv
+LAUDOS_FINAIS/
+ENTREGA_FINAL/
