@@ -123,7 +123,7 @@ function buildDashboardCards(moduleState = {}) {
     },
     {
       id: 'area',
-      label: 'Área estimada mÂ²',
+      label: 'Área estimada m²',
       value: resumo.areaOcupadaEstimadaM2 ?? 0,
       tone: 'neutral'
     },

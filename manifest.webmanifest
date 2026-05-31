@@ -1,7 +1,7 @@
 {
     "name":  "CARACTERIZAÇÃO AMBIENTAL",
     "short_name":  "CARACTERIZAÇÃO AMBIENTAL",
-    "description":  "Sistema ambiental offline-first para caracterizaÃ§Ã£o ambiental, coleta em campo e geraÃ§Ã£o de laudos.",
+    "description":  "Sistema ambiental offline-first para caracterização ambiental, coleta em campo e geração de laudos.",
     "start_url":  "./",
     "scope":  "./",
     "display":  "standalone",

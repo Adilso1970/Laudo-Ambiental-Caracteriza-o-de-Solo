@@ -148,7 +148,7 @@ export async function renderWizard10({ appEl, db, toast, projeto, baseLegal, set
     </div>
 
     <div class="small" style="margin-top:10px">
-      Referências base do diagnóstico/licenciamento (automáticas no laudo): CONAMA 237/1997, CONAMA 01/1986, Lei 12.651/2012, etc. (ver seção â€œLaudoâ€).
+      Referências base do diagnóstico/licenciamento (automáticas no laudo): CONAMA 237/1997, CONAMA 01/1986, Lei 12.651/2012, etc. (ver seção “Laudo”).
     </div>
   `;
 
@@ -206,7 +206,7 @@ export async function renderWizard10({ appEl, db, toast, projeto, baseLegal, set
   appEl.querySelector("#btnCalc").addEventListener("click", () => {
     const pts = parseVertices(vertsEl.value);
     const { areaHa, perimeterM } = approxAreaPerimeterHa(pts);
-    calcOut.textContent = `Área: ${areaHa.toFixed(4)} ha â€¢ Perímetro: ${perimeterM.toFixed(1)} m`;
+    calcOut.textContent = `Área: ${areaHa.toFixed(4)} ha • Perímetro: ${perimeterM.toFixed(1)} m`;
     appEl.querySelector("#areaHa").value = areaHa.toFixed(4);
   });
 

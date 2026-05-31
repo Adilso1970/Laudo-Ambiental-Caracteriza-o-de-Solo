@@ -94,7 +94,7 @@ export async function renderConformidade({ appEl, db, toast, projeto, baseLegal,
     <hr/>
 
     <h3 style="margin:0 0 6px">Checklist rápido (manual)</h3>
-    <div class="small">Marque itens que o órgão/município indicar. Isso aparece no laudo como â€œachados declaradosâ€.</div>
+    <div class="small">Marque itens que o órgão/município indicar. Isso aparece no laudo como “achados declarados”.</div>
     <div class="grid grid-3" style="margin-top:8px">
       ${[
         ["possuiUC","Há Unidade de Conservação na área de influência?"],

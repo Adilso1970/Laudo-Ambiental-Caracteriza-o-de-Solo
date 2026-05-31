@@ -317,7 +317,7 @@ export function buildVegetacaoLaudoHook(sessionInput = {}) {
     metodologiaSugerida: [
       'Levantamento preliminar organizado por sessão e setor ativo.',
       'Resultado preparado para futura deduplicação entre imagens.',
-      'Resumo técnico sujeito Ã  validação especializada antes de integração final no laudo.'
+      'Resumo técnico sujeito à validação especializada antes de integração final no laudo.'
     ]
   };
 }
